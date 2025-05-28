@@ -1,4 +1,5 @@
-import {useState, useEffect, createContext} from 'react'
+import {useState, useEffect, useRef, createContext} from 'react'
+import * as Pawn from '../../pawn';
 import Tile from './Tile';
 
 export const BoardContext = createContext(null);
@@ -6,6 +7,7 @@ export const BoardContext = createContext(null);
 const Board = () => {
     const tiles = new Array(64).fill(null);
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const boardRef = useRef(null);
 
     const [whitePawns, setWhitePawns] = useState(0);
     const [whiteKnights, setWhiteKnights] = useState(0);
@@ -20,6 +22,12 @@ const Board = () => {
     const [blackRooks, setBlackRooks] = useState(0);
     const [blackQueens, setBlackQueens] = useState(0);
     const [blackKing, setBlackKing] = useState(0);
+
+    const [pieceSelected, setPieceSelected] = useState(null);
+    const [tileSelected, setTileSelected] = useState(null);
+
+    const [isBlack, setIsBlack] = useState(false);
+    const [legalSquares, setLegalSquares] = useState(new Set());
     
     const resetGame = (playerColor) => {
         setWhitePawns(Number(0x000000000000FF00n));
@@ -55,6 +63,8 @@ const Board = () => {
         setBlackRooks(swapRanksVertically(blackRooks));
         setBlackQueens(swapRanksVertically(blackQueens));
         setBlackKing(swapRanksVertically(blackKing));
+        
+        setIsBlack(!isBlack);
     }
 
     const swapRanksVertically = (number) => {
@@ -69,44 +79,89 @@ const Board = () => {
     }
 
     useEffect(() => {
+        boardRef.current?.focus();
         resetGame("White");
     }, [])
 
-  return (
-    <BoardContext.Provider value={{
-        whitePawns, setWhitePawns,
-        whiteKnights, setWhiteKnights,
-        whiteBishops, setWhiteBishops,
-        whiteRooks, setWhiteRooks,
-        whiteQueens, setWhiteQueens,
-        whiteKing, setWhiteKing,
+    useEffect(() => {
+        //pawn moves
+        if (!pieceSelected) {
+            setLegalSquares(new Set());
+            return;
+        }
 
-        blackPawns, setBlackPawns,
-        blackKnights, setBlackKnights,
-        blackBishops, setBlackBishops,
-        blackRooks, setBlackRooks,
-        blackQueens, setBlackQueens,
-        blackKing, setBlackKing,
-    }}>
-        <div className='flex h-screen'>
-            {/* Board */}
-            <div 
-            className={`m-auto bg-black flex flex-row flex-wrap gap-0 outline-2 outline-black
-                w-[80vw] h-[80vw]
-                sm:w-[600px] sm:h-[600px]
-                md:w-[700px] md:h-[700px]
-                lg:w-[750px] lg:h-[750px]
-            `}>
-                {tiles.map((_, i) => 
-                    <Tile 
-                    key={`${files[Math.floor(i / 8)]}${(i % 8) + 1}`}
-                    coordinate={`${files[Math.floor(i / 8)]}${(i % 8) + 1}`}
-                    id={i}
-                    />
-                )}
+        if (isBlack && pieceSelected?.substring(0, 5) == "white") {
+            setLegalSquares(new Set());
+            return;
+        }
+
+        //get empty squares
+        const empty = ~ (BigInt(whitePawns) | BigInt(whiteKnights) | BigInt(whiteBishops) | BigInt(whiteRooks) | BigInt(whiteQueens) | BigInt(whiteKing) 
+            | BigInt(blackPawns) | BigInt(blackKnights) | BigInt(blackBishops) | BigInt(blackRooks) | BigInt(blackQueens) | BigInt(blackKing));
+            
+        let possibleMoves = new Set();
+
+        if (pieceSelected == "whitePawn" || pieceSelected == "blackPawn") {
+            if (Pawn.pawnsUpPushable(BigInt(pieceSelected == "whitePawn" ? whitePawns : blackPawns), empty) & BigInt(tileSelected)) {
+                possibleMoves.add(BigInt(tileSelected) << 8n);
+                if (Pawn.pawnsDoubleUpPushable(BigInt(pieceSelected == "whitePawn" ? whitePawns : blackPawns), empty) & BigInt(tileSelected)) {
+                    possibleMoves.add(BigInt(tileSelected) << 16n);
+                }
+            }
+        }
+
+        setLegalSquares(possibleMoves);
+    }, [tileSelected])
+
+  return (
+    <div 
+        ref={boardRef}
+        tabIndex={0}
+        onKeyDown={(e) => {
+            if (e.key == 'f') {
+                flipBoard();
+            }
+        }}
+    >
+        <BoardContext.Provider value={{
+            whitePawns, setWhitePawns,
+            whiteKnights, setWhiteKnights,
+            whiteBishops, setWhiteBishops,
+            whiteRooks, setWhiteRooks,
+            whiteQueens, setWhiteQueens,
+            whiteKing, setWhiteKing,
+
+            blackPawns, setBlackPawns,
+            blackKnights, setBlackKnights,
+            blackBishops, setBlackBishops,
+            blackRooks, setBlackRooks,
+            blackQueens, setBlackQueens,
+            blackKing, setBlackKing,
+
+            pieceSelected, setPieceSelected,
+            tileSelected, setTileSelected,
+            legalSquares, setLegalSquares
+        }}>
+            <div className='flex h-screen'>
+                {/* Board */}
+                <div
+                className={`m-auto bg-black flex flex-row flex-wrap gap-0 outline-2 outline-black
+                    w-[80vw] h-[80vw]
+                    sm:w-[600px] sm:h-[600px]
+                    md:w-[700px] md:h-[700px]
+                    lg:w-[750px] lg:h-[750px]
+                `}>
+                    {tiles.map((_, i) =>
+                        <Tile
+                        key={i}
+                        coordinate={`${files[isBlack ? 7 - (i % 8) : (i % 8)]}${isBlack ? Math.floor(i / 8) + 1 : 8 - Math.floor(i / 8)}`}
+                        id={i}
+                        />
+                    )}
+                </div>
             </div>
-        </div>
-    </BoardContext.Provider>
+        </BoardContext.Provider>
+    </div>
   )
 }
 
