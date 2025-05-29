@@ -1,5 +1,5 @@
 import {useState, useEffect, useContext} from 'react'
-import { lightColor, darkColor } from '../../constants';
+import { lightColor, darkColor } from '../math/constants';
 import { BoardContext } from './Board';
 
 import whitePawnImage from "./assets/white/white_pawn.png";

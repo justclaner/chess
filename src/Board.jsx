@@ -1,5 +1,5 @@
 import {useState, useEffect, useRef, createContext} from 'react'
-import * as Pawn from '../../pawn';
+import * as Pawn from '../math/pawn';
 import Tile from './Tile';
 
 export const BoardContext = createContext(null);
